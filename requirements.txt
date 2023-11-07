@@ -1,0 +1,4 @@
+discord.py==2.3.2
+gTTS==2.3.2
+playsound==1.3.0
+Requests==2.31.0
