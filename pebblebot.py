@@ -12,6 +12,7 @@ import requests
 from tiktokvoice import tts
 from gtts import gTTS
 from fileHandling import iggyFile
+from saucenao_api import SauceNao
 
 # get into the PI (personal notes, ignore :v):
 # ssh -i /Users/pebble/key pebble@192.168.1.206
@@ -26,21 +27,28 @@ slash = "/"
 # IDEAS
 #
 # NEW COMMANDS: 
-# - twinning function
 # - add message to list of quotes, say random quote 
-# - rainworld name generator
-# - some kinda chastity timer (self/public/specific people)
+# - some kinda chastity timer (self/public/specific people) (keymashes add hours/days)
 # - (cobalt suggestion) /squish, only usable on pooltoys, makes pooltoy do an involuntary squeak
 # - user info command that shows all user variables
 #
 # TWEAKS:
-# - replace regex with something less taxing
-# - give commands full descriptions
-# - gag: work with links
-# - message replacements - replace message first, only then delete
 # - make third person and yinglet thingy work with pluralkit tags
-# - tp and yinglet - turn it into a toggle command so you don't need two
+# - bug - if a command takes too long, it'll send an error and only then finish
 # - something to encourage not messing up with ying and tp
+# - gag and twin together WILL cause issues
+#
+# HARD TO DO:
+# - gag: work with links (maybe use re.split?)
+# - replace regex with something less taxing
+#
+# pk tp idea
+# pktp add "stuff before message" "stuff after message" (maybe as single entry?)
+# keep items in a single iggyData entry, separated by some character 
+# pktp list (lists all entries 
+# pktp remove (entry number or stuff before and after message) 
+# pktp reset (deleted everything)
+# only allow basic characters, don't allow / or |
 
 # Initializing
 intents = discord.Intents.all()
@@ -56,6 +64,12 @@ lastMessage = "a"
 # fetch bot token
 def getToken():
 	with open(os.path.join(sys.path[0], f'tokens{slash}{tokenType}.txt')) as f:
+		token = f.read()
+	return token
+
+# fetch saucenao token
+def getSauceToken():
+	with open(os.path.join(sys.path[0], f'tokens{slash}saucenao.txt')) as f:
 		token = f.read()
 	return token
 
@@ -111,7 +125,7 @@ class simpleView(discord.ui.View):
 	# text correction section
 	@discord.ui.button(label="Text Correction", style=discord.ButtonStyle.grey)
 	async def correctbutton(self, interaction: discord.Interaction, button: discord.ui.Button):
-		embed = discord.Embed(title="Text Correction", colour=discord.Colour(0xffd912), description="### /tpon\nIggy will remind you when you forget to talk in third person.\n### /tpoff\nDisables third person reminders.\n### /yingon\nIggy will remind you to talk like a yinglet.\n### /yingoff\nDisables yingspeech reminders.")
+		embed = discord.Embed(title="Text Correction", colour=discord.Colour(0xffd912), description="### /tp\nIggy will remind you when you forget to talk in third person.\n### /ying\nIggy will remind you to talk like a yinglet.")
 		embed.set_author(name="Iggy", icon_url="https://nexii.feen.us/yjf8a3j1vd.jpg")
 		embed.set_footer(text="contact @ebbl for help")
 		try:
@@ -144,7 +158,7 @@ class simpleView(discord.ui.View):
 	# kink sectiion
 	@discord.ui.button(label="Kink", style=discord.ButtonStyle.grey)
 	async def kinkbutton(self, interaction: discord.Interaction, button: discord.ui.Button):
-		embed = discord.Embed(title="Kink", colour=discord.Colour(0xffd912), description="### /imp (who) (message)\nImpersonate a user.\n### /gag (type) (owner)\nApply a gag to yourself. This will edit your messages to make them sound as if you were gagged. You can (but don't have to) also define an owner, who will then be the only person able to remove the gag.\n### /ungag (who)\nRemove a gag. Leave \"(who)\" blank to ungag yourself, or select someone else to ungag, if you are set as their owner.\n### /bully (who) (new nickname)\nChange a user's nickname.\n### /secretbully (who) (new nickname)\nChange a user's nickname without sending a message.")
+		embed = discord.Embed(title="Kink", colour=discord.Colour(0xffd912), description="### /imp (who) (message)\nImpersonate a user.\n### /gag (type) (owner)\nApply a gag to yourself. This will edit your messages to make them sound as if you were gagged. You can (but don't have to) also define an owner, who will then be the only person able to remove the gag.\n### /ungag (who)\nRemove a gag. Leave \"(who)\" blank to ungag yourself, or select someone else to ungag, if you are set as their owner.\n### /bully (who) (new nickname)\nChange a user's nickname.\n### /secretbully (who) (new nickname)\nChange a user's nickname without sending a message.\n### /twin (on/off) (who)\nTwin a server member. This will make your messages appear as if sent by the twinned user (who).")
 		embed.set_author(name="Iggy", icon_url="https://nexii.feen.us/yjf8a3j1vd.jpg")
 		embed.set_footer(text="contact @ebbl for help")
 		try:
@@ -155,7 +169,7 @@ class simpleView(discord.ui.View):
 	# misc section
 	@discord.ui.button(label="Misc", style=discord.ButtonStyle.grey)
 	async def miscbutton(self, interaction: discord.Interaction, button: discord.ui.Button):
-		embed = discord.Embed(title="Misc", colour=discord.Colour(0xffd912), description="### /peet\nSends a random paw picture.\n### /dronename (length)\nGenerate a drone name. \"(Length)\" determines how long it should be (multiplied by 2). For example, /dronename 2 will generate a dronename that is 4 characters long.\n### /boop (who)\nBoop someone.")
+		embed = discord.Embed(title="Misc", colour=discord.Colour(0xffd912), description="### /peet\nSends a random paw picture.\n### /dronename (length)\nGenerate a drone name. \"(Length)\" determines how long it should be (multiplied by 2). For example, /dronename 2 will generate a dronename that is 4 characters long.\n### /boop (who)\nBoop someone.\n### /source (link)\nGet source for an image link. Also usable by right clicking on a message > Apps > Get Image Source.")
 		embed.set_author(name="Iggy", icon_url="https://nexii.feen.us/yjf8a3j1vd.jpg")
 		embed.set_footer(text="contact @ebbl for help")
 		try:
@@ -212,49 +226,127 @@ async def infoError(ctx, error):
 #
 #-----------------------------------------
 
-# /tpon, turn on third person detection
-@bot.tree.command(name="tpon", description="Iggy will remind you when you forget to talk in third person.")
-async def _tpon(interaction: discord.Interaction):
-	iggyData = iggyFile.read(interaction.user, interaction.guild)
-	if iggyData.thirdPerson == "on":
-		await interaction.response.send_message(f"You already have third person reminders enabled, use **/tpoff** to turn them off.")
-	elif iggyData.thirdPerson == "off":
-		iggyData.thirdPerson = "on"
-		iggyFile.write(iggyData, interaction.user, interaction.guild)
-		await interaction.response.send_message(f"Iggy will now remind you when you forget to talk in third person :3")
+@app_commands.describe(option="This is a description of what the option means")
+@app_commands.choices(option=[
+        app_commands.Choice(name="Option 1", value="1"),
+        app_commands.Choice(name="Option 2", value="2")
+    ])
+async def test(interaction: discord.Interaction, option: app_commands.Choice[str]):
+    pass
 
-# /tpoff, turn off third person detection
-@bot.tree.command(name="tpoff", description="Disables third person reminders.")
-async def _tpoff(interaction: discord.Interaction):
-	iggyData = iggyFile.read(interaction.user, interaction.guild)
-	if iggyData.thirdPerson == "off":
-		await interaction.response.send_message(f"You don't have third person reminders enabled, use **/tpon** to turn them on.")
-	elif iggyData.thirdPerson == "on":
-		iggyData.thirdPerson = "off"
-		iggyFile.write(iggyData, interaction.user, interaction.guild)
-		await interaction.response.send_message(f"Iggy will no longer remind you to talk in third person.")
+# /tp, toggle third person detection
+@bot.tree.command(name="tp", description="Iggy will remind you when you forget to talk in third person.")
+@app_commands.describe(toggle = "Do you want to enable or disable third person detection?")
+@app_commands.choices(toggle = [
+		app_commands.Choice(name="On", value="on"),
+		app_commands.Choice(name="Off", value="off")
+	])
+async def _tp(interaction: discord.Interaction, toggle: app_commands.Choice[str]):
+	if toggle.value == "on":
+		iggyData = iggyFile.read(interaction.user, interaction.guild)
+		if iggyData.thirdPerson == "on":
+			await interaction.response.send_message(f"You already have third person reminders enabled, use **/tpoff** to turn them off.")
+		elif iggyData.thirdPerson == "off":
+			iggyData.thirdPerson = "on"
+			iggyFile.write(iggyData, interaction.user, interaction.guild)
+			await interaction.response.send_message(f"Iggy will now remind you when you forget to talk in third person :3")
+	elif toggle.value == "off":
+		iggyData = iggyFile.read(interaction.user, interaction.guild)
+		if iggyData.thirdPerson == "off":
+			await interaction.response.send_message(f"You don't have third person reminders enabled, use **/tpon** to turn them on.")
+		elif iggyData.thirdPerson == "on":
+			iggyData.thirdPerson = "off"
+			iggyFile.write(iggyData, interaction.user, interaction.guild)
+			await interaction.response.send_message(f"Iggy will no longer remind you to talk in third person.")
 
-# /yingon, turn on yingspeech detection
-@bot.tree.command(name="yingon", description="Iggy will remind you to talk like a yinglet.")
-async def _yingon(interaction: discord.Interaction):
-	iggyData = iggyFile.read(interaction.user, interaction.guild)
-	if iggyData.yinglet == "on":
-		await interaction.response.send_message(f"You already have yingspeech reminders enabled, use **/yingoff** to turn them off.")
-	elif iggyData.yinglet == "off":
-		iggyData.yinglet = "on"
-		iggyFile.write(iggyData, interaction.user, interaction.guild)
-		await interaction.response.send_message(f"Iggy will now remind you when you forget to talk like a yinglet :3")
+# /ying, toggle yingspeak detection
+@bot.tree.command(name="ying", description="Iggy will remind you to talk like a yinglet.")
+@app_commands.describe(toggle = "Do you want to enable or disable yingspeak detection?")
+@app_commands.choices(toggle = [
+		app_commands.Choice(name="On", value="on"),
+		app_commands.Choice(name="Off", value="off")
+	])
+async def _ying(interaction: discord.Interaction, toggle: app_commands.Choice[str]):
+	if toggle.value == "on":
+		iggyData = iggyFile.read(interaction.user, interaction.guild)
+		if iggyData.yinglet == "on":
+			await interaction.response.send_message(f"You already have yingspeech reminders enabled, use **/yingoff** to turn them off.")
+		elif iggyData.yinglet == "off":
+			iggyData.yinglet = "on"
+			iggyFile.write(iggyData, interaction.user, interaction.guild)
+			await interaction.response.send_message(f"Iggy will now remind you when you forget to talk like a yinglet :3")
+	elif toggle.value == "off":
+		iggyData = iggyFile.read(interaction.user, interaction.guild)
+		if iggyData.yinglet == "off":
+			await interaction.response.send_message(f"You don't have yingspeech reminders enabled, use **/yingon** to turn them on")
+		elif iggyData.yinglet == "on":
+			iggyData.yinglet = "off"
+			iggyFile.write(iggyData, interaction.user, interaction.guild)
+			await interaction.response.send_message(f"Iggy will no longer remind you to talk like a yinglet.")
 
-# /yingoff, turn off yingspeech detection
-@bot.tree.command(name="yingoff", description="Disables yingspeech reminders.")
-async def _yingoff(interaction: discord.Interaction):
-	iggyData = iggyFile.read(interaction.user, interaction.guild)
-	if iggyData.yinglet == "off":
-		await interaction.response.send_message(f"You don't have yingspeech reminders enabled, use **/yingon** to turn them on")
-	elif iggyData.yinglet == "on":
-		iggyData.yinglet = "off"
-		iggyFile.write(iggyData, interaction.user, interaction.guild)
-		await interaction.response.send_message(f"Iggy will no longer remind you to talk like a yinglet.")
+# twinning replacement code
+async def twinReplace(msg, message, twin):
+	# replace message
+	twinnedUser = message.channel.guild.get_member(int(twin)) # fetch the user they are twinning
+	if message.attachments != []: # make a files variable if there are files, saves space to put it here
+		files=[await f.to_file() for f in message.attachments]
+	webhook = await getWebhook(message) # get the webhook
+	if message.reference is not None: # if it is replying to someone
+		inreplyto = await message.channel.fetch_message(message.reference.message_id) # get who we're replying to
+		replyembed = discord.Embed(description=f"**[Reply to:]({inreplyto.jump_url})** {inreplyto.content[0:98]}...") # define reply embed
+		replyembed.set_author(name=f"{inreplyto.author.display_name} ↩️", icon_url=inreplyto.author.display_avatar.url) # set reply embed author
+		if hasattr(message.channel, "parent") == False:	# if it is not in a thread
+			if message.attachments != []: # if has attachments
+				await webhook.send(msg, files=files, username=twinnedUser.display_name, embed=replyembed, avatar_url=twinnedUser.display_avatar.url)
+			else: # if no attachments
+				await webhook.send(msg, username=twinnedUser.display_name, embed=replyembed, avatar_url=twinnedUser.display_avatar.url)
+		elif hasattr(message.channel, "parent") == True: #if it is in a thread
+			if message.attachments != []: # if has attachments
+				await webhook.send(msg, files=files, username=twinnedUser.display_name, thread=message.channel, embed=replyembed, avatar_url=twinnedUser.display_avatar.url)
+			else: # if no attachments
+				await webhook.send(msg, username=twinnedUser.display_name, thread=message.channel, embed=replyembed, avatar_url=twinnedUser.display_avatar.url)
+	elif message.flags.has_thread == False: # if it is not replying to someone
+		if hasattr(message.channel, "parent") == False:
+			if message.attachments != []: # if has attachments
+				await webhook.send(msg, files=files, username=twinnedUser.display_name, avatar_url=twinnedUser.display_avatar.url)
+			else: # if no attachments
+				await webhook.send(msg, username=twinnedUser.display_name, avatar_url=twinnedUser.display_avatar.url)
+		elif hasattr(message.channel, "parent") == True:
+			if message.attachments != []: # if has attachments
+				await webhook.send(msg, files=files, username=twinnedUser.display_name, thread=message.channel, avatar_url=twinnedUser.display_avatar.url)
+			else: # if no attachments
+				await webhook.send(msg, username=twinnedUser.display_name, thread=message.channel, avatar_url=twinnedUser.display_avatar.url)
+	await message.delete()
+
+# /twin, twin a server member
+@bot.tree.command(name="twin", description="Twin a server member. This will make your messages appear as if sent by the twinned user.")
+@app_commands.describe(toggle = "Do you want to enable or disable twinning?")
+@app_commands.choices(toggle = [
+		app_commands.Choice(name="On", value="on"),
+		app_commands.Choice(name="Off", value="off")
+	]) # options!
+@app_commands.describe(who = "Who do you want to twin? (only use this if turning it on)")
+async def _twin(interaction: discord.Interaction, toggle: app_commands.Choice[str], who: discord.Member = None):
+	if toggle.value == "on": # if the option selected is to turn it on
+		if who != None: # make sure the user selected who they want to twin
+			iggyData = iggyFile.read(interaction.user, interaction.guild) # get iggy data
+			if iggyData.twin == str(who.id): # check if user is already twinning the user
+				await interaction.response.send_message(f"You are already twinning this user. Use \"/twin off\" to turn it off.") # send message if they are
+			else: # if a user is NOT already twinning the user
+				iggyData.twin = str(who.id) # set twin value to desired user id
+				iggyFile.write(iggyData, interaction.user, interaction.guild) # write twin id value to file
+				await interaction.response.send_message(f"You are now twinning {who.display_name} :3") # send message
+		else: # if the user didn't select who they want to twin
+			await interaction.response.send_message(f"You need to specify who you want to twin") # send message
+	elif toggle.value == "off": # if the option selected is to turn it off
+		iggyData = iggyFile.read(interaction.user, interaction.guild) # get iggy data
+		if iggyData.twin == str(interaction.user.id): # check if user is twinning anyone
+			await interaction.response.send_message(f"You are not twinning anyone.") # if not, send message
+		else: # if user is twinning someone
+			twinnedUser = interaction.guild.get_member(int(iggyData.twin)) # fetch the user they are twinning
+			iggyData.twin = str(interaction.user.id) # set twin parameter to user's own id to disable it
+			iggyFile.write(iggyData, interaction.user, interaction.guild) # write data to file
+			await interaction.response.send_message(f"You are no longer twinning {twinnedUser.display_name}.") # send message
 
 #-----------------------------------------
 #
@@ -296,18 +388,20 @@ async def infoError(ctx, error):
 		await ctx.send(undefinedError)
 
 # /say, text to speech in voice channel
-@bot.tree.command(name="say", description="Use text to speech.")
+@bot.tree.command(name="say", description="Use text to speech. You and Iggy must be in a voice channel to use this.")
 @app_commands.describe(message = "message to say")
 async def _say(interaction: discord.Interaction, message: str):
-	global lastMessage
-	lastMessage = message
-	gttsthing = gTTS(message)
-	gttsthing.save('speech.mp3')
-	voice_user = interaction.user.voice
-	if voice_user != None:
-		vc.play(discord.FFmpegPCMAudio("speech.mp3"))
-		await interaction.response.send_message("Done!", ephemeral=True)
-	else:
+	voice_user = interaction.user.voice # define the voice user aka who's in a voice channel
+	if voice_user != None: # if a user is in a voice channel
+		await interaction.response.send_message("Working on it!", ephemeral=True) # reply, this needs to be done here bc the timeout of 3 seconds is often not enough
+		global lastMessage # set the last message as a global thing, this is lazy ignore it
+		lastMessage = message # set the last message variable to be used by the /repeat command
+		gttsthing = gTTS(message) # use google text to speech
+		gttsthing.save('speech.mp3') # save google text to speech message as file
+		vc.play(discord.FFmpegPCMAudio("speech.mp3")) # play message in voice channel
+		msg = await interaction.original_response() # get original response
+		await msg.edit(content="Done!") # edit original response
+	else: 
 		await interaction.response.send_message("You need to be in a voice channel to do this.", ephemeral=True)
 
 @_say.error
@@ -320,27 +414,26 @@ async def infoError(ctx, error):
 		await ctx.send(undefinedError)
 
 # /saytt, text to speech in voice channel but with voice selection
-@bot.tree.command(name="saytt", description="Use text to speech with a TikTok voice.")
+@bot.tree.command(name="saytt", description="Use text to speech with a TikTok voice. You and Iggy must be in a voice channel to use this.")
 @app_commands.describe(voice = "voice to use")
 @app_commands.describe(message = "message to say")
 @app_commands.choices(voice=[ app_commands.Choice(name="English AU - Female", value="en_au_001"), app_commands.Choice(name="English AU - Male", value="en_au_002"), app_commands.Choice(name="English UK - Male 1", value="en_uk_001"), app_commands.Choice(name="English UK - Male 2", value="en_uk_003"), app_commands.Choice(name="English US - Female (Int. 1)", value="en_us_001"), app_commands.Choice(name="English US - Female (Int. 2)", value="en_us_002"), app_commands.Choice(name="English US - Male 1", value="en_us_006"), app_commands.Choice(name="English US - Male 2", value="en_us_007"), app_commands.Choice(name="English US - Male 3", value="en_us_009"), app_commands.Choice(name="English US - Male 4", value="en_us_010"), app_commands.Choice(name="Ghost Face", value="en_us_ghostface"), app_commands.Choice(name="Chewbacca", value="en_us_chewbacca"), app_commands.Choice(name="C3PO", value="en_us_c3po"), app_commands.Choice(name="Stitch", value="en_us_stitch"), app_commands.Choice(name="Stormtrooper", value="en_us_stormtrooper"), app_commands.Choice(name="Rocket", value="en_us_rocket"), app_commands.Choice(name="Singing - Alto", value="en_female_f08_salut_damour"), app_commands.Choice(name="Singing - Tenor", value="en_male_m03_lobby"), app_commands.Choice(name="Singing - Warmy Breeze", value="en_female_f08_warmy_breeze"), app_commands.Choice(name="Singing - Sunshine Soon", value="en_male_m03_sunshine_soon"), app_commands.Choice(name="Narrator", value="en_male_narration"), app_commands.Choice(name="Wacky", value="en_male_funny"), app_commands.Choice(name="Peaceful", value="en_female_emotional")])
 async def _saytt(interaction: discord.Interaction, voice: app_commands.Choice[str], message: str):
+	# set all the voice values
 	VOICES = [ 'en_us_ghostface', 'en_us_chewbacca', 'en_us_c3po', 'en_us_stitch', 'en_us_stormtrooper', 'en_us_rocket', 'en_au_001', 'en_au_002', 'en_uk_001', 'en_uk_003', 'en_us_001', 'en_us_002', 'en_us_006', 'en_us_007', 'en_us_009', 'en_us_010', 'fr_001', 'fr_002', 'de_001', 'de_002', 'es_002', 'es_mx_002', 'br_001', 'br_003', 'br_004', 'br_005', 'id_001', 'jp_001', 'jp_003', 'jp_005', 'jp_006', 'kr_002', 'kr_003', 'kr_004', 'en_female_f08_salut_damour', 'en_male_m03_lobby', 'en_female_f08_warmy_breeze', 'en_male_m03_sunshine_soon', 'en_male_narration', 'en_male_funny', 'en_female_emotional']
-	voice = voice.value
-	if voice in VOICES:
-		global lastMessage
-		lastMessage = message
-		tts(message, voice, "speech.mp3", play_sound=False)
-		voice_user = interaction.user.voice
-		if voice_user != None:
-			vc.play(discord.FFmpegPCMAudio("speech.mp3"))
-			await interaction.response.send_message("Done!", ephemeral=True)
-			pass
+	voice = voice.value # get value of voice
+	if voice in VOICES: # if the voice selected is valid
+		voice_user = interaction.user.voice # define the voice user aka who's in a voice channel
+		if voice_user != None: # if a user is in a voice channel
+			await interaction.response.send_message("Working on it!", ephemeral=True) # reply, this needs to be done here bc the timeout of 3 seconds is often not enough
+			global lastMessage # set the last message as a global thing, this is lazy ignore it
+			lastMessage = message # set the last message variable to be used by the /repeat command
+			tts(message, voice, "speech.mp3", play_sound=False) # use tiktok text to speech and save the files
+			vc.play(discord.FFmpegPCMAudio("speech.mp3")) # play message in voice channel
+			msg = await interaction.original_response() # get original response
+			await msg.edit(content="Done!") # edit original response
 		else:
-			await interaction.response.send_message("You need to be in a voice channel to do this.")
-			pass
-	else:
-		await interaction.response.send_message("This voice does not exist. [[list of voices]](https://nexii.feen.us/60nucfrfh3.txt)")
+			await interaction.response.send_message("This voice does not exist. [[list of voices]](https://nexii.feen.us/60nucfrfh3.txt)")
 
 @_saytt.error
 async def infoError(ctx, error):
@@ -354,10 +447,10 @@ async def infoError(ctx, error):
 # /repeat, repeat last text to speech message
 @bot.tree.command(name="repeat", description="Repeat the last text to speech message.")
 async def _repeat(interaction: discord.Interaction):
-	voice_user = interaction.user.voice
-	if voice_user != None:
-		vc.play(discord.FFmpegPCMAudio("speech.mp3"))
-		await interaction.response.send_message(lastMessage)
+	voice_user = interaction.user.voice # define the voice user aka who's in a voice channel
+	if voice_user != None: # if a user is in a voice channel
+		await interaction.response.send_message(lastMessage) # send text message of the last message said
+		vc.play(discord.FFmpegPCMAudio("speech.mp3")) # play last message said in the voice channel
 	else:
 		await interaction.response.send_message("You need to be in a voice channel to do this.", ephemeral=True)
 
@@ -374,20 +467,22 @@ async def infoError(ctx, error):
 @app_commands.describe(message = "message to say")
 @app_commands.choices(voice=[ app_commands.Choice(name="English AU - Female", value="en_au_001"), app_commands.Choice(name="English AU - Male", value="en_au_002"), app_commands.Choice(name="English UK - Male 1", value="en_uk_001"), app_commands.Choice(name="English UK - Male 2", value="en_uk_003"), app_commands.Choice(name="English US - Female (Int. 1)", value="en_us_001"), app_commands.Choice(name="English US - Female (Int. 2)", value="en_us_002"), app_commands.Choice(name="English US - Male 1", value="en_us_006"), app_commands.Choice(name="English US - Male 2", value="en_us_007"), app_commands.Choice(name="English US - Male 3", value="en_us_009"), app_commands.Choice(name="English US - Male 4", value="en_us_010"), app_commands.Choice(name="Ghost Face", value="en_us_ghostface"), app_commands.Choice(name="Chewbacca", value="en_us_chewbacca"), app_commands.Choice(name="C3PO", value="en_us_c3po"), app_commands.Choice(name="Stitch", value="en_us_stitch"), app_commands.Choice(name="Stormtrooper", value="en_us_stormtrooper"), app_commands.Choice(name="Rocket", value="en_us_rocket"), app_commands.Choice(name="Singing - Alto", value="en_female_f08_salut_damour"), app_commands.Choice(name="Singing - Tenor", value="en_male_m03_lobby"), app_commands.Choice(name="Singing - Warmy Breeze", value="en_female_f08_warmy_breeze"), app_commands.Choice(name="Singing - Sunshine Soon", value="en_male_m03_sunshine_soon"), app_commands.Choice(name="Narrator", value="en_male_narration"), app_commands.Choice(name="Wacky", value="en_male_funny"), app_commands.Choice(name="Peaceful", value="en_female_emotional")])
 async def _save(interaction: discord.Interaction, voice: app_commands.Choice[str], message: str):
-	voice = voice.value
-	tts(message, voice, "speech.mp3", play_sound=False)
-	sendFile = f"{absolute_path}{slash}speech.mp3"
-	await interaction.response.send_message(file=discord.File(sendFile))
-	pass	
+	await interaction.response.send_message("Working on it!", ephemeral=True) # reply, this needs to be done here bc the timeout of 3 seconds is often not enough
+	voice = voice.value # get value of voice
+	tts(message, voice, "speech.mp3", play_sound=False) # use tiktok tts to get the audio file
+	sendFile = f"speech.mp3" # get the thingy to send
+	msg = await interaction.original_response() # get original response
+	await msg.add_files(discord.File(sendFile)) # edit original response	
+	await msg.edit(content="Done!") # edit original response
 
-@_save.error
+'''@_save.error
 async def infoError(ctx, error):
 	if isinstance(error, commands.MissingRequiredArgument):
 		await ctx.send("what voice do you want to use / what do you want it to say? [[list of voices]](https://nexii.feen.us/60nucfrfh3.txt)")
 	elif isinstance(error, commands.CommandInvokeError):
 		await ctx.send(undefinedError)
 	elif isinstance(error, commands.CommandError):
-		await ctx.send(undefinedError)
+		await ctx.send(undefinedError)'''
 
 # /relay, send message as iggy
 @bot.tree.command(name="relay", description="Send a message as iggy.")
@@ -549,7 +644,7 @@ async def gagReplace(msg, message, gagtype):
 		pass
 
 # /gag, turn on a gag
-@bot.tree.command(name="gag", description="Apply a gag to yourself.")
+@bot.tree.command(name="gag", description="Apply a gag to yourself. Optionally set an owner, they will be the only user who can remove the gag.")
 @app_commands.describe(gagtype = "Gag type")
 @app_commands.describe(owner = "Owner")
 @app_commands.choices(gagtype=[
@@ -591,7 +686,7 @@ async def _gag(interaction: discord.Interaction, gagtype: app_commands.Choice[st
 			await interaction.response.send_message(messageNotAllowed)
 
 # /ungag, de-activate a gag
-@bot.tree.command(name="ungag", description="Remove a gag.")
+@bot.tree.command(name="ungag", description="Remove a gag. Remove a gag. Leave \"(who)\" blank to ungag yourself, or select someone else to ungag.")
 @app_commands.describe(who = "who do you want to ungag")
 async def _ungag(interaction: discord.Interaction, who: discord.Member = None):
 	# define server / who ran the command / an owner
@@ -605,7 +700,7 @@ async def _ungag(interaction: discord.Interaction, who: discord.Member = None):
 	messageSelfNotGagged = f"You're not gagged!"
 	messageNotGagged = f"{target.display_name} is not gagged!"
 	# open and read user data
-	iggyData = iggyFile.read(interaction.user, interaction.guild)
+	iggyData = iggyFile.read(target, interaction.guild)
 	# define writing to file
 	getUser = bot.get_user(int(iggyData.gagOwner)) # get owner on file
 	ownerOnFile = getUser.display_name # get owner on file name
@@ -619,7 +714,7 @@ async def _ungag(interaction: discord.Interaction, who: discord.Member = None):
 		if iggyData.gagOwner == str(interaction.user.id): # if user has permission to ungag
 			iggyData.gagType = "none" # write new gag (none)
 			iggyData.gagOwner = str(interaction.user.id) # set owner as self
-			iggyFile.write(iggyData, interaction.user, interaction.guild) # write data to file
+			iggyFile.write(iggyData, target, interaction.guild) # write data to file
 			if target == interaction.user: # if target is self
 				await interaction.response.send_message(messageUngaggedSelf)
 			elif target != interaction.user: #if target is someone else
@@ -680,29 +775,13 @@ async def _peet(interaction: discord.Interaction):
 	full_path = os.path.join(absolute_path, relative_path)
 	sendPeet = f"{full_path}{random.choice(os.listdir(full_path))}"
 	await interaction.response.send_message(file=discord.File(sendPeet))
-	pass
-
-@_peet.error
-async def infoError(ctx, error):
-	if isinstance(error, commands.CommandError):
-		await ctx.send(undefinedError)
 
 # /dronename, generate a drone name
-@bot.tree.command(name="dronename", description="Generate a drone name.")
+@bot.tree.command(name="dronename", description="Generate a drone name. \"(Length)\" determines how long it should be (multiplied by 2)")
 @app_commands.describe(length = "how long should the name be?")
 async def _dronename(interaction: discord.Interaction, length: int):
 	name = secrets.token_hex(length)
 	await interaction.response.send_message(name)
-	pass
-
-@_dronename.error
-async def infoError(ctx, error):
-	if isinstance(error, commands.MissingRequiredArgument):
-		await ctx.send("How long should the name be?")
-	elif isinstance(error, commands.CommandInvokeError):
-		await ctx.send("Command failed to run (the parameter has to be a number).")
-	elif isinstance(error, commands.CommandError):
-		await ctx.send(undefinedError)
 
 # /boop, boop a user
 @bot.tree.command(name="boop", description="Boop someone.")
@@ -715,12 +794,54 @@ async def _boop(interaction: discord.Interaction, who: discord.Member):
 	iggyFile.write(iggyData, who, interaction.guild)
 	await interaction.response.send_message(f"<@{who.id}> has been booped! They've been booped {scoreInt} times!")
 
+# /source, get image source
+@bot.tree.command(name="source", description="Get source for an image link. Also usable by right clicking on a message > Apps > Get Image Source.")
+@app_commands.describe(link = "link to the image")
+async def _source(interaction: discord.Interaction, link: str):
+	if bool(re.search("(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])", link, re.IGNORECASE)): # check if entry is a valid link
+		sauce = SauceNao(getSauceToken()) # initialize sauce
+		results = sauce.from_url(link) # get results
+		best = results[0]  # get the best result
+		links = "" # define empty links string
+		for link in best.urls: # add every link to string
+			links = f"{links}\n{link}"
+		embed = discord.Embed(title=f"Drawn by: {best.author}", colour=discord.Colour(0xffd912), description=f"Similarity: {best.similarity}%\nLinks:{links}") # set base embed
+		embed.set_footer(text="Powered by SauceNAO") # set embed footer
+		embed.set_thumbnail(url=best.thumbnail) # set embed thumbnail
+		await interaction.response.send_message(embed=embed) # send response with embed
+	else: #if the link is not valid
+		await interaction.response.send_message("This is not a valid link.", ephemeral=True)
+
+'''
+# /userinfo, list info of a user
+@bot.tree.command(name="userinfo", description="List saved Iggy preferences for a specific user.")
+@app_commands.describe(who = "whose info to display")
+async def _boop(interaction: discord.Interaction, who: discord.Member = None):
+	if who == None: # if no target user was defined
+		who = interaction.user # define target as user who ran the command
+	iggyData = iggyFile.read(who, interaction.guild) # read iggy data
+	embed = discord.Embed(title="a0b8", colour=discord.Colour(0x4f5bee), description="### ?info\nDisplays this command list\n### ?say (Message)\na0b8 will repeat the message\n### ?do (Action)\na0b8 will preform the action to the best of its ability\n### ?find (Subject)\na0b8 will find the subject online to the best of its ability\n### ?titleme (Title)\na0b8 will call you by the entered title\n### ?bully (New name)\na0b8 will use the entered name\n### ?idea (Your idea)\nSend a0b8 an idea for a new command")
+	embed.set_author(name="a0b8", icon_url="https://cdn.discordapp.com/attachments/1124439205808963594/1159579645717524551/a0bp_shaded_pfp.png")
+	embed.set_footer(text="a0b8 appreciates praise, let it know if its been a good drone.")
+
+	await interaction.response.send_message(f"<@{who.id}> has been booped! They've been booped {scoreInt} times!")
+	            self.displayName = displayName
+                self.userid = userid
+                self.keymashScore = keymashScore
+                self.kittyScore = kittyScore
+                self.boopScore = boopScore
+                self.gagType = gagType
+                self.gagOwner = gagOwner
+                self.thirdPerson = thirdPerson
+                self.yinglet = yinglet'''
+
 #-----------------------------------------
 #
 #              Context Menu
 #
 #-----------------------------------------
 
+# delete message
 async def deleteBotMessage(interaction: discord.Interaction, message: discord.Message):
 	if message.author.id == 1103354385930657854:
 		await message.delete()
@@ -732,6 +853,33 @@ async def deleteBotMessage(interaction: discord.Interaction, message: discord.Me
 		await interaction.response.send_message("You cannot delete this message.", ephemeral=True)
 deleteContextMenu = app_commands.ContextMenu(name='❌ Delete Message', callback=deleteBotMessage)
 bot.tree.add_command(deleteContextMenu)
+
+# source image
+async def sourceContext(interaction: discord.Interaction, message: discord.Message):
+	link = re.search("(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])", message.content, re.IGNORECASE) # get link from message
+	if link == None and message.attachments == []: # if message doesn't have a link or attachments
+		await interaction.response.send_message("Could not find a link in selected message.", ephemeral=True)
+	async def respond(interaction): # define response code
+		best = results[0]  # get the best result
+		links = "" # define empty links string
+		for link in best.urls: # add every link to string
+			links = f"{links}\n{link}"
+		embed = discord.Embed(title=f"Drawn by: {best.author}", colour=discord.Colour(0xffd912), description=f"Similarity: {best.similarity}%\nLinks:{links}") # set base embed
+		embed.set_footer(text="Powered by SauceNAO") # set embed footer
+		embed.set_thumbnail(url=best.thumbnail) # set embed thumbnail
+		await interaction.response.send_message(embed=embed) # send response with embed
+	if link == None and message.attachments != []: # if message doesn't have a link BUT has attachments
+		sauce = SauceNao(getSauceToken()) # initialize sauce
+		link = message.attachments[0].proxy_url
+		results = sauce.from_url(link) # get results
+		await respond(interaction=interaction)
+	else: # if message has link
+		sauce = SauceNao(getSauceToken()) # initialize sauce
+		results = sauce.from_url(link.group(0)) # get results
+		await respond(interaction=interaction) # respond
+		
+sourceContextMenu = app_commands.ContextMenu(name='🖼️ Get Image Source', callback=sourceContext)
+bot.tree.add_command(sourceContextMenu)
 
 #-----------------------------------------
 #
@@ -752,8 +900,7 @@ async def on_message(message):
 			keymashScoreNew += 1
 			iggyData.keymashScore = str(keymashScoreNew)
 			iggyFile.write(iggyData, message.author, message.guild)
-			milestoneList = [50,100,200,300,400,500,600,700,800,900,1000,1500,2000,3000,4000,5000]
-			if keymashScoreNew in milestoneList:
+			if str(keymashScoreNew).endswith("00"):
 				await channel.send(f"{keymashScoreNew} keymash milestone reached!")
 			
 		#:3 detection
@@ -762,12 +909,11 @@ async def on_message(message):
 			kittyScoreNew += 1
 			iggyData.kittyScore = str(kittyScoreNew)
 			iggyFile.write(iggyData, message.author, message.guild)
-			milestoneList = [50,100,200,300,400,500,600,700,800,900,1000,1500,2000,3000,4000,5000]
-			if kittyScoreNew in milestoneList:
+			if str(kittyScoreNew).endswith("00"):
 				await channel.send(f"{kittyScoreNew} :3 milestone reached!")
 
 		#third person detection
-		if bool(re.search("(^|\s)(i|me|my|im|i'm|i'd|i've|ive|i'll)(\s|$)", msg, re.IGNORECASE)):
+		if bool(re.search("(^|\s)(i|me|my|im|i'm|i'd|i've|ive|i'll)(\s|$)", msg, re.IGNORECASE)) and bool(re.search("http://|https://|[x]|^p:", msg, re.IGNORECASE)) == False:
 			if iggyData.thirdPerson == "on":
 				await channel.send("Silly thing, you can't talk in first person!")
 				
@@ -780,6 +926,11 @@ async def on_message(message):
 		if bool(re.search("http://|https://|[x]", msg, re.IGNORECASE)) == False and message.type != discord.MessageType.thread_created: # make sure it doesn't contain a link or start a thread
 			if iggyData.gagType != "none": # if a gag is set
 				await gagReplace(msg, message, iggyData.gagType)
+
+		#twin detection
+		if message.type != discord.MessageType.thread_created: # make sure it doesn't or start a thread
+			if iggyData.twin != str(message.author.id): # if a user is twinning someone
+				await twinReplace(msg, message, iggyData.twin)
 
 		#make a thread when posting  in #art
 		if message.author.bot == False and message.channel.id == 1124374436871667774:

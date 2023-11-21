@@ -14,14 +14,15 @@ class iggyFile:
             # set default values for if they're missing from the user file:
             def __init__(self,
                         displayName=interactionUser.global_name,
-                        userid=interactionUser.id,
+                        userid=str(interactionUser.id),
                         keymashScore="0",
                         kittyScore="0",
                         boopScore="0",
                         gagType="none",
                         gagOwner=str(interactionUser.id),
                         thirdPerson="off",
-                        yinglet="off"):
+                        yinglet="off",
+                        twin=str(interactionUser.id)):
                 #initialize the values
                 self.displayName = displayName
                 self.userid = userid
@@ -32,6 +33,7 @@ class iggyFile:
                 self.gagOwner = gagOwner
                 self.thirdPerson = thirdPerson
                 self.yinglet = yinglet
+                self.twin = twin
 
         # check if json file exists
         iggyDataFileExists = os.path.exists(f"{absolute_path}{slash}userData{slash}{guild.id}{slash}{userFileName}")
@@ -55,7 +57,8 @@ class iggyFile:
             iggyDataRaw.get('gagType', iggyDataClass().gagType),
             iggyDataRaw.get('gagOwner', iggyDataClass().gagOwner),
             iggyDataRaw.get('thirdPerson', iggyDataClass().thirdPerson),
-            iggyDataRaw.get('yinglet', iggyDataClass().yinglet)
+            iggyDataRaw.get('yinglet', iggyDataClass().yinglet),
+            iggyDataRaw.get('twin', iggyDataClass().twin)
         )
 
         # return user data object
@@ -76,7 +79,8 @@ class iggyFile:
             "gagType": iggyData.gagType,
             "gagOwner": iggyData.gagOwner,
             "thirdPerson": iggyData.thirdPerson,
-            "yinglet": iggyData.yinglet
+            "yinglet": iggyData.yinglet,
+            "twin": iggyData.twin
         }
 
         # check if server directory exists
