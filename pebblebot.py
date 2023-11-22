@@ -891,7 +891,7 @@ bot.tree.add_command(sourceContextMenu)
 async def on_message(message):
 	channel = message.channel
 	msg = message.content
-	if hasattr(message.guild, "id") == True: #make sure this isn't DMs
+	if hasattr(message.guild, "id") == True and msg.endswith("<:ignore:1176605355900416020>") == False: # make sure this isn't DMs and ignore messages that have ignore emote
 		iggyData = iggyFile.read(message.author, message.guild) # define iggy data object
 		server = message.guild.id
 		#keymash detection
